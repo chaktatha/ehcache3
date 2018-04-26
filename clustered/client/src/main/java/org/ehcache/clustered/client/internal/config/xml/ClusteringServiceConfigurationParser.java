@@ -40,13 +40,10 @@ import org.w3c.dom.NodeList;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -67,6 +64,7 @@ import static org.ehcache.xml.XmlModel.convertToJavaTimeUnit;
  *
  * @see ClusteredCacheConstants#XSD
  */
+
 public class ClusteringServiceConfigurationParser implements CacheManagerServiceConfigurationParser<ClusteringService>,
                                                               CacheServiceConfigurationParser<ClusteredStore.Provider> {
 
@@ -102,6 +100,11 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
   }
 
   @Override
+  public Element translateServiceConfiguration(Document doc, ServiceConfiguration<ClusteredStore.Provider> serviceConfiguration) {
+    return null;
+  }
+
+  @Override
   public Class<ClusteringService> getServiceCreationConfigurationType() {
     return ClusteringService.class;
   }
@@ -123,8 +126,6 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
 
       ServerSideConfig serverConfig = null;
       URI connectionUri = null;
-      List<InetSocketAddress> serverAddresses = new ArrayList<>();
-      String clusterTierManager = null;
       Duration getTimeout = null, putTimeout = null, connectionTimeout = null;
       final NodeList childNodes = fragment.getChildNodes();
       for (int i = 0; i < childNodes.getLength(); i++) {
@@ -143,24 +144,6 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
                 throw new XmlConfigurationException(
                   String.format("Value of %s attribute on XML configuration element <%s> in <%s> is not a valid URI - '%s'",
                     urlAttribute.getName(), item.getNodeName(), fragment.getTagName(), connectionUri), e);
-              }
-
-              break;
-            case "cluster-connection":
-              clusterTierManager = ((Element) item).getAttribute("cluster-tier-manager");
-              final NodeList serverNodes = item.getChildNodes();
-              for (int j = 0; j < serverNodes.getLength(); j++) {
-                final Node serverNode = serverNodes.item(j);
-                final String host = ((Element) serverNode).getAttributeNode("host").getValue();
-                final Attr port = ((Element) serverNode).getAttributeNode("port");
-                InetSocketAddress address;
-                if (port == null) {
-                  address = InetSocketAddress.createUnresolved(host, 0);
-                } else {
-                  String portString = port.getValue();
-                  address = InetSocketAddress.createUnresolved(host, Integer.parseInt(portString));
-                }
-                serverAddresses.add(address);
               }
 
               break;
@@ -202,11 +185,7 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
       try {
         Timeouts timeouts = getTimeouts(getTimeout, putTimeout, connectionTimeout);
         if (serverConfig == null) {
-          if (connectionUri != null) {
-            return new ClusteringServiceConfiguration(connectionUri, timeouts);
-          } else {
-            return new ClusteringServiceConfiguration(serverAddresses, clusterTierManager, timeouts);
-          }
+          return new ClusteringServiceConfiguration(connectionUri, timeouts);
         }
 
         ServerSideConfiguration serverSideConfiguration;
@@ -216,11 +195,7 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
           serverSideConfiguration = new ServerSideConfiguration(serverConfig.defaultServerResource, serverConfig.pools);
         }
 
-        if (connectionUri != null) {
-          return new ClusteringServiceConfiguration(connectionUri, timeouts, serverConfig.autoCreate, serverSideConfiguration);
-        } else {
-          return new ClusteringServiceConfiguration(serverAddresses, clusterTierManager, timeouts, serverConfig.autoCreate, serverSideConfiguration);
-        }
+        return new ClusteringServiceConfiguration(connectionUri, timeouts, serverConfig.autoCreate, serverSideConfiguration);
       } catch (IllegalArgumentException e) {
         throw new XmlConfigurationException(e);
       }
@@ -344,12 +319,6 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
     Element defaultResourceElement = doc.createElement("tc:default-resource");
     defaultResourceElement.setAttribute("from", defaultServerResource);
     return defaultResourceElement;
-  }
-
-
-  @Override
-  public Element translateServiceConfiguration(Document doc, ServiceConfiguration<ClusteredStore.Provider> serviceConfiguration) {
-    return null;
   }
 
   private Timeouts getTimeouts(Duration getTimeout, Duration putTimeout, Duration connectionTimeout) {

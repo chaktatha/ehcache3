@@ -102,23 +102,26 @@ public class ConfigurationTranslator {
 
   public String toXml() {
     StringBuilder sb = new StringBuilder();
-    for(ServiceCreationConfiguration<?> serviceCreationConfiguration : configuration.getServiceCreationConfigurations()){
-      String xmlPart = getClusterCreationConfigurationXml(serviceCreationConfiguration);
-      if(!(xmlPart == null || xmlPart.trim().length()==0)){
-        sb.append(xmlPart);
-      }
-    }
-    for(Map.Entry<String, CacheConfiguration<?,?>> cacheConfigurationEntry : configuration.getCacheConfigurations().entrySet()) {
-      CacheConfiguration<?,?> cacheConfiguration = cacheConfigurationEntry.getValue();
-      Collection<ServiceConfiguration<?>> cacheServiceConfigurations = cacheConfiguration.getServiceConfigurations();
-      for(ServiceConfiguration<?> serviceConfiguration : cacheServiceConfigurations){
-        String xmlPart = getCacheServiceConfigurationXml(serviceConfiguration);
+    if (configuration.getServiceCreationConfigurations() != null){
+      for(ServiceCreationConfiguration<?> serviceCreationConfiguration : configuration.getServiceCreationConfigurations()){
+        String xmlPart = getClusterCreationConfigurationXml(serviceCreationConfiguration);
         if(!(xmlPart == null || xmlPart.trim().length()==0)){
           sb.append(xmlPart);
         }
       }
     }
-
+    if (configuration.getCacheConfigurations() != null){
+      for(Map.Entry<String, CacheConfiguration<?,?>> cacheConfigurationEntry : configuration.getCacheConfigurations().entrySet()) {
+        CacheConfiguration<?,?> cacheConfiguration = cacheConfigurationEntry.getValue();
+        Collection<ServiceConfiguration<?>> cacheServiceConfigurations = cacheConfiguration.getServiceConfigurations();
+        for(ServiceConfiguration<?> serviceConfiguration : cacheServiceConfigurations){
+          String xmlPart = getCacheServiceConfigurationXml(serviceConfiguration);
+          if(!(xmlPart == null || xmlPart.trim().length()==0)){
+            sb.append(xmlPart);
+          }
+        }
+      }
+    }
     return sb.toString();
   }
 
