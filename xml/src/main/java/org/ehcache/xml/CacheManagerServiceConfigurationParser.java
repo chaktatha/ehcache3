@@ -21,6 +21,7 @@ import java.net.URI;
 import javax.xml.transform.Source;
 import org.ehcache.spi.service.Service;
 import org.ehcache.spi.service.ServiceCreationConfiguration;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /**
@@ -34,4 +35,8 @@ public interface CacheManagerServiceConfigurationParser<T extends Service> {
   URI getNamespace();
 
   ServiceCreationConfiguration<T> parseServiceCreationConfiguration(Element fragment);
+
+  Class<T> getServiceCreationConfigurationType();
+
+  Element translateServiceConfiguration(Document doc, ServiceCreationConfiguration<T> serviceCreationConfiguration);
 }

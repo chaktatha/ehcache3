@@ -21,6 +21,7 @@ import org.ehcache.jsr107.config.Jsr107Configuration;
 import org.ehcache.xml.CacheManagerServiceConfigurationParser;
 import org.ehcache.jsr107.config.Jsr107Service;
 import org.ehcache.spi.service.ServiceCreationConfiguration;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -85,5 +86,15 @@ public class Jsr107ServiceConfigurationParser implements CacheManagerServiceConf
     }
 
     return new Jsr107Configuration(defaultTemplate, templates, jsr107CompliantAtomics, enableManagementAll, enableStatisticsAll);
+  }
+
+  @Override
+  public Class<Jsr107Service> getServiceCreationConfigurationType() {
+    return null;
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceCreationConfiguration<Jsr107Service> serviceCreationConfiguration) {
+    return null;
   }
 }

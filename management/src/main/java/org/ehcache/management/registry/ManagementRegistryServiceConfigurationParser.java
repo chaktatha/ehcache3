@@ -19,6 +19,7 @@ import org.ehcache.management.ManagementRegistryService;
 import org.ehcache.spi.service.ServiceCreationConfiguration;
 import org.ehcache.xml.CacheManagerServiceConfigurationParser;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import javax.xml.transform.Source;
@@ -76,6 +77,16 @@ public class ManagementRegistryServiceConfigurationParser implements CacheManage
           "XML configuration element <%s> in <%s> is not supported",
           fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
     }
+  }
+
+  @Override
+  public Class<ManagementRegistryService> getServiceCreationConfigurationType() {
+    return null;
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceCreationConfiguration<ManagementRegistryService> serviceCreationConfiguration) {
+    return null;
   }
 
   private static String attr(Element element, String name) {

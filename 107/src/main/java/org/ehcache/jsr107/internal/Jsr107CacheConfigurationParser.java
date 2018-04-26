@@ -22,6 +22,7 @@ import org.ehcache.jsr107.config.Jsr107Service;
 import org.ehcache.spi.service.ServiceConfiguration;
 import org.ehcache.xml.CacheServiceConfigurationParser;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import java.io.IOException;
@@ -38,7 +39,8 @@ public class Jsr107CacheConfigurationParser implements CacheServiceConfiguration
 
   private static final URI NAMESPACE = URI.create("http://www.ehcache.org/v3/jsr107");
   private static final URL XML_SCHEMA = Jsr107CacheConfigurationParser.class.getResource("/ehcache-107ext.xsd");
-  private static final String MANAGEMENT_ENABLED_ATTRIBUTE = "enable-management";
+  private static final String MANAGEMENT_ENABLED_ATTRIBUTE = "enab" +
+    "le-management";
   private static final String STATISTICS_ENABLED_ATTRIBUTE = "enable-statistics";
 
   @Override
@@ -68,5 +70,15 @@ public class Jsr107CacheConfigurationParser implements CacheServiceConfiguration
       throw new XmlConfigurationException(String.format("XML configuration element <%s> in <%s> is not supported",
           fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
     }
+  }
+
+  @Override
+  public Class<Jsr107Service> getServiceConfigurationType() {
+    return null;
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceConfiguration<Jsr107Service> serviceConfiguration) {
+    return null;
   }
 }

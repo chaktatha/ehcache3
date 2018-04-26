@@ -20,6 +20,7 @@ import org.ehcache.clustered.client.internal.config.DedicatedClusteredResourcePo
 import org.ehcache.clustered.client.internal.config.SharedClusteredResourcePoolImpl;
 import org.ehcache.clustered.client.internal.config.ClusteredResourcePoolImpl;
 import org.ehcache.config.ResourcePool;
+import org.ehcache.config.ResourceType;
 import org.ehcache.config.units.MemoryUnit;
 import org.ehcache.xml.CacheResourceConfigurationParser;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
@@ -98,5 +99,15 @@ public class ClusteredResourceConfigurationParser implements CacheResourceConfig
     }
     throw new XmlConfigurationException(String.format("XML configuration element <%s> in <%s> is not supported",
         fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
+  }
+
+  @Override
+  public Element translateResourcePool(ResourcePool resourcePool) {
+    return null;
+  }
+
+  @Override
+  public ResourceType<?> getResourceType() {
+    return null;
   }
 }

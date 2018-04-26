@@ -18,6 +18,7 @@ package org.ehcache.xml;
 
 import org.ehcache.spi.service.Service;
 import org.ehcache.spi.service.ServiceConfiguration;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import java.io.IOException;
@@ -44,6 +45,16 @@ public class FancyParser implements CacheServiceConfigurationParser<Service> {
   @Override
   public ServiceConfiguration<Service> parseServiceConfiguration(Element fragment) {
     return new FooConfiguration();
+  }
+
+  @Override
+  public Class<Service> getServiceConfigurationType() {
+    return null;
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceConfiguration<Service> serviceConfiguration) {
+    return null;
   }
 
   @Override

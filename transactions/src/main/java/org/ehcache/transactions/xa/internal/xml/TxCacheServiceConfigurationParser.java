@@ -21,6 +21,7 @@ import org.ehcache.spi.service.ServiceConfiguration;
 import org.ehcache.transactions.xa.internal.XAStore;
 import org.ehcache.transactions.xa.configuration.XAStoreConfiguration;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import javax.xml.transform.Source;
@@ -57,5 +58,15 @@ public class TxCacheServiceConfigurationParser implements CacheServiceConfigurat
       throw new XmlConfigurationException(String.format("XML configuration element <%s> in <%s> is not supported",
           fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
     }
+  }
+
+  @Override
+  public Class<XAStore.Provider> getServiceConfigurationType() {
+    return null;
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceConfiguration<XAStore.Provider> serviceConfiguration) {
+    return null;
   }
 }

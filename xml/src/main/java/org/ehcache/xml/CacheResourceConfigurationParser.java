@@ -17,6 +17,7 @@
 package org.ehcache.xml;
 
 import org.ehcache.config.ResourcePool;
+import org.ehcache.config.ResourceType;
 import org.w3c.dom.Element;
 
 import java.io.IOException;
@@ -36,4 +37,8 @@ public interface CacheResourceConfigurationParser {
   URI getNamespace();
 
   ResourcePool parseResourceConfiguration(Element fragment);
+
+  Element translateResourcePool(ResourcePool resourcePool);
+
+  ResourceType<?> getResourceType();
 }

@@ -23,6 +23,7 @@ import org.ehcache.xml.CacheManagerServiceConfigurationParser;
 import org.ehcache.spi.service.ServiceCreationConfiguration;
 import org.ehcache.core.internal.util.ClassLoading;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import javax.xml.transform.Source;
@@ -67,5 +68,15 @@ public class TxCacheManagerServiceConfigurationParser implements CacheManagerSer
       throw new XmlConfigurationException(String.format("XML configuration element <%s> in <%s> is not supported",
           fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
     }
+  }
+
+  @Override
+  public Class<TransactionManagerProvider> getServiceCreationConfigurationType() {
+    return null;
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceCreationConfiguration<TransactionManagerProvider> serviceCreationConfiguration) {
+    return null;
   }
 }

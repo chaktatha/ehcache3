@@ -18,13 +18,18 @@ package org.ehcache.clustered.client.internal.config.xml;
 
 import org.ehcache.clustered.client.config.ClusteringServiceConfiguration;
 import org.ehcache.clustered.client.config.Timeouts;
+import org.ehcache.clustered.client.config.builders.ClusteringServiceConfigurationBuilder;
 import org.ehcache.clustered.client.config.builders.TimeoutsBuilder;
 import org.ehcache.clustered.client.internal.ConnectionSource;
+import org.ehcache.clustered.common.ServerSideConfiguration;
+import org.ehcache.config.CacheConfiguration;
 import org.ehcache.config.Configuration;
+import org.ehcache.config.units.MemoryUnit;
 import org.ehcache.core.internal.util.ClassLoading;
 import org.ehcache.core.spi.service.ServiceUtils;
 import org.ehcache.spi.service.ServiceCreationConfiguration;
 import org.ehcache.xml.CacheManagerServiceConfigurationParser;
+import org.ehcache.xml.ConfigurationTranslator;
 import org.ehcache.xml.XmlConfiguration;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
 import org.ehcache.xml.model.TimeType;
@@ -43,12 +48,15 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.time.temporal.TemporalUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -63,8 +71,12 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.terracotta.passthrough.Assert.assertTrue;
 
 /**
  * Basic tests for {@link ClusteringServiceConfigurationParser}.
@@ -422,6 +434,70 @@ public class ClusteringServiceConfigurationParserTest {
 
     assertThat(connectionSource.getClusterTierManager(), is("cM"));
     assertThat(servers, is(expectedServers));
+  }
+
+  @Test
+  public void testTranslateServiceCreationConfiguration() throws Exception{
+    URI connectionUri = new URI("terracotta://localhost:9510");
+    ClusteringServiceConfiguration serviceConfig = ClusteringServiceConfigurationBuilder.cluster(connectionUri)
+      .timeouts(Timeouts.DEFAULT)
+      .expecting()
+      .defaultServerResource("main")
+      .resourcePool("primaryresource", 5, MemoryUnit.GB)
+      .resourcePool("seondaryresource", 10, MemoryUnit.GB, "optional")
+      .build();
+    Configuration clusterConfiguration = new Configuration() {
+      @Override
+      public Map<String, CacheConfiguration<?, ?>> getCacheConfigurations() {
+        return null;
+      }
+
+      @Override
+      public Collection<ServiceCreationConfiguration<?>> getServiceCreationConfigurations() {
+        Collection<ServiceCreationConfiguration<?>> configurations  = new ArrayList<>();
+        configurations.add(serviceConfig);
+        return configurations;
+      }
+
+      @Override
+      public ClassLoader getClassLoader() {
+        return null;
+      }
+    };
+    ConfigurationTranslator configurationTranslator = new ConfigurationTranslator(clusterConfiguration);
+    String retValue = configurationTranslator.toXml();
+    System.out.println(retValue);
+    String startTag = "<ehcache:config xmlns:ehcache=\"http://www.ehcache.org/v3\"><ehcache:service>";
+    String endTag = "</ehcache:service></ehcache:config>";
+    String entireString = startTag + retValue + endTag;
+    System.out.println(entireString);
+    XmlConfiguration config = new XmlConfiguration(makeConfig(new String[]{entireString}));
+
+    assertNotNull(config.getServiceCreationConfigurations());
+    assertEquals(1, config.getServiceCreationConfigurations().size());
+
+    ClusteringServiceConfiguration retServiceConfig =
+      (ClusteringServiceConfiguration)config.getServiceCreationConfigurations().iterator().next();
+    assertEquals(connectionUri, retServiceConfig.getClusterUri());
+    assertFalse(retServiceConfig.isAutoCreate());
+    assertNotNull(retServiceConfig.getServerConfiguration());
+    Map<String, ServerSideConfiguration.Pool> retPoolMap = retServiceConfig.getServerConfiguration().getResourcePools();
+    assertNotNull(retPoolMap);
+    assertEquals(2, retPoolMap.size());
+    for(Map.Entry<String, ServerSideConfiguration.Pool> entry : retPoolMap.entrySet()){
+      String name = entry.getKey();
+      ServerSideConfiguration.Pool value = entry.getValue();
+      assertTrue("primaryresource".equals(name) || "seondaryresource".equals(name));
+      if("primaryresource".equals(name)){
+        assertEquals(5*1024*1024*1024L,value.getSize());
+      } else if ("seondaryresource".equals(name)){
+        assertEquals(10*1024*1024*1024L,value.getSize());
+        assertEquals("optional", value.getServerResource());
+      }
+      else {
+        fail("Invalid resource name "+name+" is returned");
+      }
+    }
   }
 
   /**

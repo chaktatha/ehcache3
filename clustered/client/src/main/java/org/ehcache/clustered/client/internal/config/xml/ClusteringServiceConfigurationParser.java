@@ -33,6 +33,7 @@ import org.ehcache.xml.CacheServiceConfigurationParser;
 import org.ehcache.xml.exceptions.XmlConfigurationException;
 import org.ehcache.xml.model.TimeType;
 import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -48,7 +49,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
+import javax.xml.XMLConstants;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -91,6 +94,16 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
     }
     throw new XmlConfigurationException(String.format("XML configuration element <%s> in <%s> is not supported",
         fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
+  }
+
+  @Override
+  public Class<ClusteredStore.Provider> getServiceConfigurationType() {
+    return ClusteredStore.Provider.class;
+  }
+
+  @Override
+  public Class<ClusteringService> getServiceCreationConfigurationType() {
+    return ClusteringService.class;
   }
 
   /**
@@ -214,6 +227,129 @@ public class ClusteringServiceConfigurationParser implements CacheManagerService
     }
     throw new XmlConfigurationException(String.format("XML configuration element <%s> in <%s> is not supported",
         fragment.getTagName(), (fragment.getParentNode() == null ? "null" : fragment.getParentNode().getLocalName())));
+  }
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceCreationConfiguration<ClusteringService> serviceCreationConfiguration) {
+    validateParametersForTranslationToServiceConfig(doc, serviceCreationConfiguration);
+    Element rootElement;
+    try {
+      ClusteringServiceConfiguration clusteringServiceConfiguration = (ClusteringServiceConfiguration)serviceCreationConfiguration;
+
+      rootElement = createRootUrlElement(doc, clusteringServiceConfiguration);
+      processTimeUnits(doc, rootElement, clusteringServiceConfiguration);
+      Element serverSideConfigurationElem = processServerSideElements(doc, clusteringServiceConfiguration);
+
+      rootElement.appendChild(serverSideConfigurationElem);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    return rootElement;
+  }
+
+  private void validateParametersForTranslationToServiceConfig(Document doc
+    , ServiceCreationConfiguration<ClusteringService> serviceCreationConfiguration){
+    Objects.requireNonNull(doc, "Document must not be NULL");
+    Objects.requireNonNull(serviceCreationConfiguration, "ServiceCreationConfiguration must not be NULL");
+    if(!ClusteringServiceConfiguration.class.isInstance(serviceCreationConfiguration)){
+      throw new IllegalArgumentException("Parameter serviceCreationConfiguration must be cast to ClusteringServiceConfiguration."
+        + "Provided type of parameter is : "+serviceCreationConfiguration.getClass());
+    }
+  }
+
+  private Element createRootUrlElement(Document doc, ClusteringServiceConfiguration clusteringServiceConfiguration){
+    Element rootElement = doc.createElement("tc:cluster");
+    rootElement.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:" + "tc", NAMESPACE.toString());
+    Element urlElement = doc.createElement("tc:connection");
+    urlElement.setAttribute("url", clusteringServiceConfiguration.getClusterUri().toString());
+    rootElement.appendChild(urlElement);
+    doc.appendChild(rootElement);
+    return rootElement;
+  }
+
+  private void processTimeUnits(Document doc, Element parent, ClusteringServiceConfiguration clusteringServiceConfiguration){
+    if (clusteringServiceConfiguration.getTimeouts()!=null) {
+      Timeouts timeouts = clusteringServiceConfiguration.getTimeouts();
+      Element connectionTimeoutElem = createTimeoutElement(doc, "connection-timeout", timeouts.getConnectionTimeout());
+      Element readTimeoutElem = createTimeoutElement(doc, "read-timeout", timeouts.getReadOperationTimeout());
+      Element writeTimeoutElem = createTimeoutElement(doc, "write-timeout", timeouts.getWriteOperationTimeout());
+      parent.appendChild(connectionTimeoutElem);
+      parent.appendChild(readTimeoutElem);
+      parent.appendChild(writeTimeoutElem);
+    }
+
+  }
+
+  private Element createTimeoutElement(Document doc, String timeoutName, Duration timeout){
+    Element retElement = null;
+    if("connection-timeout".equals(timeoutName)){
+      retElement = doc.createElement("tc:read-timeout");
+    }
+    else if("read-timeout".equals(timeoutName)){
+      retElement = doc.createElement("tc:write-timeout");
+    }
+    else {
+      retElement = doc.createElement("tc:connection-timeout");
+    }
+    retElement.setAttribute("unit","seconds");
+    retElement.setTextContent(Long.toString(timeout.getSeconds()));
+    return retElement;
+  }
+
+  private Element processServerSideElements(Document doc, ClusteringServiceConfiguration clusteringServiceConfiguration){
+    Element serverSideConfigurationElem = createServerSideConfigurationElement(doc, clusteringServiceConfiguration);
+
+    if (clusteringServiceConfiguration.getServerConfiguration() != null){
+      ServerSideConfiguration serverSideConfiguration = clusteringServiceConfiguration.getServerConfiguration();
+      String defaultServerResource = serverSideConfiguration.getDefaultServerResource();
+      if(!(defaultServerResource == null || defaultServerResource.trim().length()==0)){
+        Element defaultResourceElement = createDefaultServerResourceElement(doc, defaultServerResource);
+        serverSideConfigurationElem.appendChild(defaultResourceElement);
+      }
+      Map<String, Pool> resourcePools = serverSideConfiguration.getResourcePools();
+      if (!(resourcePools == null || resourcePools.isEmpty())) {
+        for(Map.Entry<String, Pool> entry : resourcePools.entrySet()){
+          Element poolElement = createSharedPoolElement(doc, entry);
+          serverSideConfigurationElem.appendChild(poolElement);
+        }
+      }
+    }
+    return serverSideConfigurationElem;
+  }
+
+  private Element createServerSideConfigurationElement(Document doc, ClusteringServiceConfiguration clusteringServiceConfiguration){
+    Element serverSideConfigurationElem = doc.createElement("tc:server-side-config");
+    serverSideConfigurationElem.setAttribute("auto-create",clusteringServiceConfiguration.isAutoCreate()
+      ? Boolean.TRUE.toString() : Boolean.FALSE.toString());
+    return serverSideConfigurationElem;
+  }
+
+
+  private Element createSharedPoolElement(Document doc, Map.Entry<String, Pool> entry){
+    String poolName = entry.getKey();
+    Pool pool = entry.getValue();
+    Element poolElement = doc.createElement("tc:shared-pool");
+    poolElement.setAttribute("name", poolName);
+    String from = pool.getServerResource();
+    if(!(from == null || from.trim().length()==0)){
+      poolElement.setAttribute("from", from);
+    }
+    long memoryInMB = MemoryUnit.MB.convert(pool.getSize(), MemoryUnit.B);
+    poolElement.setAttribute("unit",MemoryUnit.MB.toString());
+    poolElement.setTextContent(Long.toString(memoryInMB));
+    return poolElement;
+  }
+
+  private Element createDefaultServerResourceElement(Document doc, String defaultServerResource){
+    Element defaultResourceElement = doc.createElement("tc:default-resource");
+    defaultResourceElement.setAttribute("from", defaultServerResource);
+    return defaultResourceElement;
+  }
+
+
+  @Override
+  public Element translateServiceConfiguration(Document doc, ServiceConfiguration<ClusteredStore.Provider> serviceConfiguration) {
+    return null;
   }
 
   private Timeouts getTimeouts(Duration getTimeout, Duration putTimeout, Duration connectionTimeout) {
