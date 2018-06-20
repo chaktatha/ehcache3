@@ -429,6 +429,11 @@ public class ClusterTierManagerPassiveEntityTest {
       return capacity;
     }
 
+    @Override
+    public void alterCapacity(final long size) throws IllegalArgumentException {
+
+    }
+
     private long getUsed() {
       return used;
     }
